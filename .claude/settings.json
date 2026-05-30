@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp /Users/hongweiwu/fishReader/fish-reader-vscode/media/icon.png src-tauri/icons/icon.png)",
+      "Bash(cp /Users/hongweiwu/fishReader/fish-reader-vscode/novels/示例.txt .)",
+      "Bash(cp /Users/hongweiwu/fishReader/fish-reader-vscode/novels/示例.txt novels/)"
+    ],
+    "additionalDirectories": [
+      "/Users/hongweiwu/fishReader/fish-reader-vscode"
+    ]
+  }
+}

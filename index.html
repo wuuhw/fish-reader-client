@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>豆包</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- ===================== sidebar ===================== -->
+      <aside id="sidebar">
+        <div class="sb-header">
+          <button id="brand-block" class="sb-brand" title="设置">
+            <div id="avatar" class="avatar"></div>
+            <span id="brand-name" class="sb-brand-name">豆包</span>
+          </button>
+          <button id="collapse-btn" class="icon-btn" title="收起侧栏">▥</button>
+        </div>
+
+        <button id="new-chat" class="sb-new">
+          <span class="sb-new-icon">＋</span>
+          <span class="sb-new-text">新对话</span>
+          <span class="sb-kbd">⌘K</span>
+        </button>
+
+        <nav id="skills" class="sb-skills">
+          <div class="sb-skill selected" data-skill="search"><span class="sk-ic">🔍</span>AI 搜索</div>
+          <div class="sb-skill" data-skill="write"><span class="sk-ic">✍️</span>帮我写作</div>
+          <div class="sb-skill" data-skill="image"><span class="sk-ic">🖼️</span>图像生成</div>
+          <div class="sb-skill" data-skill="code"><span class="sk-ic">&lt;/&gt;</span>AI 编程</div>
+          <div class="sb-skill" data-skill="cloud"><span class="sk-ic">📁</span>AI 云盘</div>
+        </nav>
+
+        <div class="sb-divider"></div>
+
+        <div class="sb-skill sb-collapse" id="hist-collapse"><span class="sk-ic">▽</span>收起<span class="sk-caret">⌄</span></div>
+
+        <div class="sb-hist-head">历史对话</div>
+        <div id="history-list" class="sb-history"></div>
+      </aside>
+
+      <!-- ===================== main ===================== -->
+      <section id="main">
+        <header id="main-head">
+          <button id="sidebar-show" class="icon-btn hidden" title="展开侧栏">▥</button>
+          <span id="main-title" class="main-title">豆包</span>
+        </header>
+
+        <main id="log"></main>
+
+        <footer id="composer">
+          <div id="slash-menu" class="slash-menu hidden"></div>
+          <div class="composer-box">
+            <textarea id="input" rows="1" placeholder="发消息、输入 @ 或 / 选择技能"></textarea>
+            <div class="composer-bar">
+              <!-- left: 深度思考(常驻) + boss 切换键(boss↔恢复) -->
+              <div class="composer-left">
+                <button id="deep-think" class="deep-think">
+                  <span class="dt-ic">✦</span>深度思考
+                </button>
+                <button id="boss-btn" class="boss-pill" title="老板键 ⌘⇧B">
+                  <span class="boss-ic" id="boss-ic">🫣</span><span id="boss-label">boss</span>
+                </button>
+              </div>
+              <div class="composer-actions">
+                <!-- right: 摸鱼态=阅读导航 / 老板态=装饰图标 -->
+                <div class="nav-btns reading-only">
+                  <button id="nav-prev" class="nav-btn" title="上一章">上一章</button>
+                  <button id="nav-next" class="nav-btn" title="下一章">下一章</button>
+                  <button id="nav-toc" class="nav-btn" title="目录">目录</button>
+                </div>
+                <div class="deco-icons boss-only">
+                  <button class="icon-btn" title="附件">📎</button>
+                  <button class="icon-btn" title="剪辑">✂︎</button>
+                  <button class="icon-btn" title="语音">🎙</button>
+                </div>
+                <button id="send-btn" class="send-btn" title="发送 (Enter)">↑</button>
+              </div>
+            </div>
+          </div>
+        </footer>
+      </section>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
