@@ -43,10 +43,18 @@
 - `ui/` — `dom` 豆包气泡渲染、`streaming` 流式打字
 - `controller.ts` / `main.ts` — 编排与事件接线
 
+## 支持的格式
+
+- **TXT**(UTF-8 / GBK / GB18030 自动识别)
+- **EPUB**(按 OPF spine 顺序解析章节,自带目录,比 txt 正则切章更准)
+- **FB2**(FictionBook,按 `<title>` 切章)
+
+EPUB/FB2 的解析是一套**纯 TS 解析器**(`src/engine/formats/`,用 `fflate` 解 zip),桌面端在 webview 里解析(Rust 只用 `read_bytes` 把原始字节递过来),与 VSCode 插件**完全同一套代码**,保证两端解析一致。`novels/示例.epub`、`novels/示例.fb2` 可直接拖进来试。
+
 ## 命令
 
 ```
-/init <path>   关联本地 txt(也可直接把文件拖进窗口)
+/init <path>   关联本地 txt / epub / fb2(也可直接把文件拖进窗口)
 /目录 /toc      章节列表
 /下一页 /n      下一章(整章输出)
 /上一页 /p      上一章
