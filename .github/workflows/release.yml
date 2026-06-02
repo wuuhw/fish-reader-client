@@ -78,15 +78,31 @@ jobs:
       - name: 安装前端依赖
         run: pnpm install --frozen-lockfile
 
-      - name: 构建并发布
+      - name: 构建(并在推送 v* tag 时发布 Release)
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # tagName / releaseName 里的 __VERSION__ 会被自动替换成 tauri.conf.json 的 version
-          tagName: ${{ github.ref_name }}
-          releaseName: "小豆 ${{ github.ref_name }}"
+          # 仅在「推送 tag」时传 tagName,触发发布到 Release;
+          # 手动 Run 时为空字符串,tauri-action 只构建、不上传(避免与旧草稿撞名)
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('小豆 {0}', github.ref_name) || '' }}
           releaseBody: "查看下方 Assets 下载对应平台安装包。"
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # 每次构建都把安装包存为 workflow 产物(手动触发也能在运行页下载,永不撞名)
+      - name: 上传安装包为构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            src-tauri/target/**/release/bundle/nsis/*-setup.exe
+            src-tauri/target/**/release/bundle/dmg/*.dmg
+            src-tauri/target/**/release/bundle/appimage/*.AppImage
+            src-tauri/target/**/release/bundle/deb/*.deb
+            src-tauri/target/**/release/bundle/rpm/*.rpm
