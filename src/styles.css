@@ -1,4 +1,6 @@
 :root {
+  color-scheme: light dark;
+
   --sidebar-bg: #f7f7f8;
   --main-bg: #ffffff;
   --accent: #4d6bfe; /* Doubao blue */
@@ -19,8 +21,51 @@
   --diff-del-text: #cb2431;
   --code-bg: #f5f5f7;
 
+  /* elevated surfaces & misc (promoted from hardcoded values so dark mode can
+     override them in one place) */
+  --surface: #ffffff; /* cards, inputs, menus, drawers */
+  --block-bg: #fcfcfd; /* diff / work artifact blocks */
+  --block-head-bg: #fafaff; /* table header */
+  --scrollbar: #e2e2e8;
+  --scrollbar-sidebar: #dddde3;
+  --hover-strong: #e0e0e6;
+  --focus-ring: #c3ccff;
+  --switch-off: #d6d6de;
+
   --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas, monospace;
+}
+
+/* follow the system theme automatically */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sidebar-bg: #1a1a1e;
+    --main-bg: #1e1e22;
+    --accent: #6b84ff; /* lightened Doubao blue for dark contrast */
+    --accent-soft: #232a47;
+    --user-bubble: #2c2c33;
+    --border: #2e2e34;
+    --text-primary: #e8e8ec;
+    --text-secondary: #8e8e9c;
+    --text-tertiary: #6a6a76;
+    --hover: #2a2a30;
+    --selected: #2c3354;
+
+    --diff-add-bg: #133024;
+    --diff-add-text: #4ade80;
+    --diff-del-bg: #3a1d1f;
+    --diff-del-text: #f87171;
+    --code-bg: #2a2a30;
+
+    --surface: #26262b;
+    --block-bg: #232328;
+    --block-head-bg: #2a2a32;
+    --scrollbar: #3a3a42;
+    --scrollbar-sidebar: #34343c;
+    --hover-strong: #34343c;
+    --focus-ring: #4d6bfe;
+    --switch-off: #3a3a42;
+  }
 }
 
 * {
@@ -139,7 +184,7 @@ body {
   align-items: center;
   gap: 8px;
   width: 100%;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 9px 12px;
@@ -185,7 +230,7 @@ body {
   background: var(--hover);
 }
 .sb-skill.selected {
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .sk-ic {
@@ -245,7 +290,7 @@ body {
   width: 6px;
 }
 .sb-history::-webkit-scrollbar-thumb {
-  background: #dddde3;
+  background: var(--scrollbar-sidebar);
   border-radius: 3px;
 }
 .hist-item {
@@ -293,7 +338,7 @@ body {
   opacity: 1;
 }
 .hist-more:hover {
-  background: #e0e0e6;
+  background: var(--hover-strong);
 }
 .hist-empty {
   font-size: 12.5px;
@@ -307,7 +352,7 @@ body {
 .hist-menu {
   position: absolute;
   z-index: 60;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
@@ -364,7 +409,7 @@ body {
   width: 8px;
 }
 #log::-webkit-scrollbar-thumb {
-  background: #e2e2e8;
+  background: var(--scrollbar);
   border-radius: 4px;
 }
 
@@ -530,7 +575,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  background: #fcfcfd;
+  background: var(--block-bg);
 }
 .diff-head {
   display: flex;
@@ -593,7 +638,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  background: #fcfcfd;
+  background: var(--block-bg);
 }
 .work-head {
   padding: 7px 12px;
@@ -630,7 +675,7 @@ body {
   border-bottom: 1px solid var(--border);
 }
 .work-table th {
-  background: #fafaff;
+  background: var(--block-head-bg);
   color: var(--text-secondary);
   font-weight: 600;
   font-size: 12px;
@@ -708,7 +753,7 @@ body {
 .composer-box {
   max-width: 760px;
   margin: 0 auto;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 12px 14px 8px;
@@ -716,7 +761,7 @@ body {
   transition: border-color 0.12s ease;
 }
 .composer-box:focus-within {
-  border-color: #c3ccff;
+  border-color: var(--focus-ring);
 }
 #input {
   width: 100%;
@@ -852,7 +897,7 @@ body {
   bottom: calc(100% - 4px);
   max-height: 260px;
   overflow-y: auto;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
@@ -913,7 +958,7 @@ body {
   width: 440px;
   max-width: calc(100vw - 40px);
   max-height: calc(100vh - 80px);
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   display: flex;
@@ -980,7 +1025,7 @@ body {
 .set-input {
   width: 100%;
   max-width: 220px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 7px 10px;
@@ -990,7 +1035,7 @@ body {
   outline: none;
 }
 .set-input:focus {
-  border-color: #c3ccff;
+  border-color: var(--focus-ring);
 }
 .set-num-wrap .set-input {
   max-width: 110px;
@@ -1019,7 +1064,7 @@ body {
 .set-select {
   appearance: none;
   -webkit-appearance: none;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 7px 30px 7px 10px;
@@ -1039,7 +1084,7 @@ body {
   pointer-events: none;
 }
 .set-btn-ghost {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 6px 14px;
@@ -1104,7 +1149,7 @@ body {
   outline: none;
 }
 .set-json:focus {
-  border-color: #c3ccff;
+  border-color: var(--focus-ring);
 }
 .set-import-row {
   display: flex;
@@ -1152,7 +1197,7 @@ body {
 .set-switch-slider {
   position: absolute;
   inset: 0;
-  background: #d6d6de;
+  background: var(--switch-off);
   border-radius: 100px;
   transition: background 0.15s ease;
 }
@@ -1183,7 +1228,7 @@ body {
   bottom: 0;
   width: 320px;
   max-width: 80%;
-  background: #fff;
+  background: var(--surface);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -1247,7 +1292,7 @@ body {
   content: '松手以打开这本 txt';
   position: fixed;
   inset: 16px;
-  border: 2px dashed #c3ccff;
+  border: 2px dashed var(--focus-ring);
   border-radius: 18px;
   background: rgba(77, 107, 254, 0.05);
   display: flex;
