@@ -1,0 +1,87 @@
+name: Release
+
+# 触发方式:
+#   1. 推送形如 v0.1.0 的 tag 时自动构建并发布 Release
+#   2. 在 GitHub 网页 Actions 页手动点击运行(workflow_dispatch)
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+# 允许 workflow 创建 Release(上传安装包)
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS:同时产出 Apple Silicon + Intel 的通用包
+          - platform: macos-latest
+            args: "--target universal-apple-darwin"
+          # Windows:产出 .msi 和 .exe(NSIS)安装器
+          - platform: windows-latest
+            args: ""
+          # Linux:产出 .AppImage / .deb
+          - platform: ubuntu-22.04
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      # Linux 端 Tauri 需要的系统依赖(WebKitGTK 等)
+      - name: 安装 Linux 系统依赖
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # macOS 通用包需要同时安装两个架构的 target
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      # 缓存 Rust 编译产物,加速后续构建
+      - name: 缓存 Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: 安装前端依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建并发布
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # tagName / releaseName 里的 __VERSION__ 会被自动替换成 tauri.conf.json 的 version
+          tagName: ${{ github.ref_name }}
+          releaseName: "小豆 ${{ github.ref_name }}"
+          releaseBody: "查看下方 Assets 下载对应平台安装包。"
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
