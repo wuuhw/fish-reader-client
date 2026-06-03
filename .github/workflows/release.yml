@@ -18,7 +18,24 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # 前置:删除同名旧 draft Release(只删 Release,保留 tag)。
+  # 反复重跑同一个 tag 时,旧草稿里残留的同名资产会让上传报 already_exists;
+  # 先删干净,后面三平台的 tauri-action 会重新创建草稿并上传,流程可重复运行。
+  # 在 ubuntu runner 上 gh CLI 已预装,GH_TOKEN 即仓库自带 token。
+  prepare-release:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 删除同名旧 draft Release(保留 tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --yes || echo "没有同名 Release,跳过删除"
+
   build:
+    needs: prepare-release
     strategy:
       fail-fast: false
       matrix:
