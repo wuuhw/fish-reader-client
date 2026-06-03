@@ -187,6 +187,28 @@ jobs:
         with:
           path: artifacts
 
+      # 计算「更新说明」(展示给终端用户,务必干净):
+      #   1) 若仓库有 RELEASE_NOTES.md → 用它的全文(推荐:在这里写正式更新日志)
+      #   2) 否则取提交主题(首行)—— 天然排除正文与 Co-Authored-By 等尾注 ——
+      #      再去掉 "release: vX.Y.Z —" 前缀
+      - name: 计算更新说明
+        shell: bash
+        run: |
+          if [ -f RELEASE_NOTES.md ]; then
+            NOTES=$(cat RELEASE_NOTES.md)
+          else
+            NOTES=$(git log -1 --pretty=%s)
+            NOTES=$(printf '%s' "$NOTES" | sed -E 's/^release:?[[:space:]]*v?[0-9]+(\.[0-9]+)*[[:space:]]*//')
+            NOTES=$(printf '%s' "$NOTES" | sed -E 's/^—[[:space:]]*//; s/^[:-][[:space:]]*//')
+          fi
+          [ -z "$NOTES" ] && NOTES='本次更新包含若干改进与修复。'
+          {
+            echo "RELEASE_NOTES<<__EOF__"
+            echo "$NOTES"
+            echo "__EOF__"
+          } >> "$GITHUB_ENV"
+          echo "更新说明 → $NOTES"
+
       # 生成两份清单:
       #   latest.json    —— 客户端自动更新用(mac 指向 .app.tar.gz)
       #   downloads.json —— 官网下载页用(mac 指向 .dmg,面向首次安装)
@@ -198,7 +220,7 @@ jobs:
             --base "https://moyulao.oss-cn-beijing.aliyuncs.com/updates" \
             --out artifacts/latest.json \
             --downloads-out artifacts/downloads.json \
-            --notes "${{ github.event.head_commit.message || '本次更新包含若干改进与修复。' }}"
+            --notes "$RELEASE_NOTES"
 
       # 安装 ossutil:直接下载 v1 官方二进制到工作目录。
       # 不用官方 install.sh —— 它会把二进制 cp 到 /usr/bin,而 runner 非 root,
