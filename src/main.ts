@@ -11,6 +11,8 @@ import { SettingsPanel } from './ui/settings';
 import { loadConfig, saveConfig, AppConfig } from './config';
 import { resolveProfession, bossHistoryName } from './disguise/professions';
 import { inTauri } from './tauri';
+import { checkForUpdate } from './updater';
+import { UpdatePrompt } from './ui/update-modal';
 
 const logEl = document.getElementById('log') as HTMLElement;
 const inputEl = document.getElementById('input') as HTMLTextAreaElement;
@@ -456,6 +458,26 @@ async function wireTauri() {
   });
 }
 
+// ---------- auto-update ----------
+// Two flows (desktop only; no-op in browser dev):
+//  • cold start  → an update found here is forced (mandatory modal, no skip).
+//  • while open  → poll every 30 min; a new version shows a red header badge
+//                  the user can open and update at their leisure.
+const updatePrompt = new UpdatePrompt();
+const UPDATE_POLL_MS = 30 * 60 * 1000;
+
+async function checkUpdatesOnStart() {
+  const info = await checkForUpdate();
+  if (info) updatePrompt.forced(info);
+}
+
+function startUpdatePolling() {
+  setInterval(async () => {
+    const info = await checkForUpdate();
+    if (info) updatePrompt.badgePrompt(info);
+  }, UPDATE_POLL_MS);
+}
+
 // ---------- boot ----------
 async function boot() {
   applyIdentity();
@@ -465,5 +487,10 @@ async function boot() {
   await wireTauri();
   await controller.start();
   inputEl.focus();
+  // Defer the first update check a few seconds so it never competes with boot.
+  setTimeout(() => {
+    void checkUpdatesOnStart();
+    startUpdatePolling();
+  }, 4000);
 }
 void boot();

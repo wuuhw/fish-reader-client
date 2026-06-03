@@ -92,6 +92,11 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 更新签名(全平台都用到):用更新私钥对每个安装包签名,产出 .sig;
+          # createUpdaterArtifacts:true 时还会额外产出 macOS 的 .app.tar.gz。
+          # 公钥写在 tauri.conf.json,客户端用它校验下载的更新包未被篡改。
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # ↓ 仅 macOS 用到;非 mac runner 上 tauri-action 会忽略这些值
           # 代码签名:Developer ID Application 证书(.p12 → base64)+ 导出密码 + 签名身份
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -119,7 +124,76 @@ jobs:
           retention-days: 14
           path: |
             src-tauri/target/**/release/bundle/nsis/*-setup.exe
+            src-tauri/target/**/release/bundle/nsis/*-setup.exe.sig
             src-tauri/target/**/release/bundle/dmg/*.dmg
+            src-tauri/target/**/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/**/release/bundle/macos/*.app.tar.gz.sig
             src-tauri/target/**/release/bundle/appimage/*.AppImage
+            src-tauri/target/**/release/bundle/appimage/*.AppImage.sig
             src-tauri/target/**/release/bundle/deb/*.deb
             src-tauri/target/**/release/bundle/rpm/*.rpm
+
+  # ===================================================================
+  # 收尾:汇总三平台产物 → 生成 latest.json → 上传到阿里云 OSS。
+  # 仅在「推送 v* tag」时运行(手动 Run 只构建,不发布)。
+  # 用户客户端只访问 OSS,国内直连无需翻墙。
+  # ===================================================================
+  publish-oss:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # 把三平台 build job 上传的产物(安装包 + .sig + macOS .app.tar.gz)下载到一起
+      - name: 下载全部构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # 读取每个更新包对应的 .sig,生成 latest.json(下载地址指向 OSS)
+      - name: 生成 latest.json
+        run: |
+          node scripts/gen-latest-json.mjs \
+            --dir artifacts \
+            --version "${{ github.ref_name }}" \
+            --base "https://moyulao.oss-cn-beijing.aliyuncs.com/updates" \
+            --out artifacts/latest.json \
+            --notes "${{ github.event.head_commit.message || '本次更新包含若干改进与修复。' }}"
+
+      # 安装阿里云官方 CLI(ossutil)
+      - name: 安装 ossutil
+        run: |
+          curl -sSL https://gosspublic.alicdn.com/ossutil/install.sh | bash
+          ossutil --version
+
+      # 配置 OSS 凭证(RAM 子账号,仅授予该 bucket 写权限)
+      - name: 配置 ossutil
+        run: |
+          ossutil config \
+            -e oss-cn-beijing.aliyuncs.com \
+            -i "${{ secrets.OSS_ACCESS_KEY_ID }}" \
+            -k "${{ secrets.OSS_ACCESS_KEY_SECRET }}"
+
+      # 上传:安装包 + .sig → updates/<tag>/;latest.json → updates/(覆盖)
+      - name: 上传到 OSS
+        run: |
+          VER="${{ github.ref_name }}"
+          # 把所有安装包与签名平铺上传到版本目录
+          find artifacts -type f \( \
+            -name '*-setup.exe' -o -name '*-setup.exe.sig' \
+            -o -name '*.dmg' \
+            -o -name '*.app.tar.gz' -o -name '*.app.tar.gz.sig' \
+            -o -name '*.AppImage' -o -name '*.AppImage.sig' \
+            -o -name '*.deb' \) -print0 \
+          | while IFS= read -r -d '' f; do
+              ossutil cp -f "$f" "oss://moyulao/updates/${VER}/$(basename "$f")"
+            done
+          # 最后覆盖 latest.json(更新清单,客户端轮询的入口)
+          ossutil cp -f artifacts/latest.json "oss://moyulao/updates/latest.json"

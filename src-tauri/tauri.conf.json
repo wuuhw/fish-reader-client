@@ -28,10 +28,18 @@
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: http://asset.localhost; font-src 'self' data:"
     }
   },
-  "plugins": {},
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVENjgyNTk4NzA0MzE3OApSV1I0TVFTSFdZTFdCV2JyMjBrYWRmdEp3c2FqcEFqbzg4ZWlEVGtZOVliakJ3QUNjYXYzL3p4Vwo=",
+      "endpoints": [
+        "https://moyulao.oss-cn-beijing.aliyuncs.com/updates/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
