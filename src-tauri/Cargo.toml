@@ -1,6 +1,6 @@
 [package]
 name = "fish-reader-client"
-version = "0.1.0"
+version = "0.1.1"
 description = "FishReader 桌面客户端"
 authors = ["fishreader"]
 edition = "2021"

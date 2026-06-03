@@ -1,7 +1,7 @@
 {
   "name": "fish-reader-client",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "FishReader 桌面客户端 — 伪装成 AI 助手(豆包风格)的本地 TXT 小说阅读器",
   "type": "module",
   "scripts": {
