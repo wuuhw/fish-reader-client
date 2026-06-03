@@ -1,6 +1,7 @@
 import { AppConfig } from '../config';
 import { el } from './dom';
 import { listProfessions, parseProfession, buildGeneratorPrompt } from '../disguise/professions';
+import { buildAboutBlock } from './about';
 
 export type ApplyFn = (next: AppConfig) => void;
 
@@ -252,6 +253,11 @@ export class SettingsPanel {
       gb18030: 'GB18030',
     });
     bodyEl.appendChild(this.field('编码', encSel));
+
+    bodyEl.appendChild(el('div', 'set-divider'));
+
+    // ---- 关于(版本 + 官网/GitHub/抖音) ----
+    bodyEl.appendChild(this.section('关于', buildAboutBlock()));
 
     modal.appendChild(bodyEl);
 

@@ -43,8 +43,7 @@ jobs:
           # macOS:同时产出 Apple Silicon + Intel 的通用包
           - platform: macos-latest
             args: "--target universal-apple-darwin"
-          # Windows:只用 NSIS 产出 .exe 安装器
-          # (中文产品名「小豆」会让 WiX 的 .msi 打包步骤 light.exe 失败,故跳过 msi)
+          # Windows:只用 NSIS 产出 .exe 安装器(沿用,稳妥;不折腾 WiX msi)
           - platform: windows-latest
             args: "--bundles nsis"
           # Linux:产出 .AppImage / .deb
@@ -140,7 +139,7 @@ jobs:
           # 仅在「推送 tag」时传 tagName,触发发布到 Release;
           # 手动 Run 时为空字符串,tauri-action 只构建、不上传(避免与旧草稿撞名)
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('小豆 {0}', github.ref_name) || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('FishReader {0}', github.ref_name) || '' }}
           releaseBody: "查看下方 Assets 下载对应平台安装包。"
           releaseDraft: true
           prerelease: false
@@ -188,14 +187,17 @@ jobs:
         with:
           path: artifacts
 
-      # 读取每个更新包对应的 .sig,生成 latest.json(下载地址指向 OSS)
-      - name: 生成 latest.json
+      # 生成两份清单:
+      #   latest.json    —— 客户端自动更新用(mac 指向 .app.tar.gz)
+      #   downloads.json —— 官网下载页用(mac 指向 .dmg,面向首次安装)
+      - name: 生成 latest.json / downloads.json
         run: |
           node scripts/gen-latest-json.mjs \
             --dir artifacts \
             --version "${{ github.ref_name }}" \
             --base "https://moyulao.oss-cn-beijing.aliyuncs.com/updates" \
             --out artifacts/latest.json \
+            --downloads-out artifacts/downloads.json \
             --notes "${{ github.event.head_commit.message || '本次更新包含若干改进与修复。' }}"
 
       # 安装 ossutil:直接下载 v1 官方二进制到工作目录。
@@ -229,5 +231,6 @@ jobs:
           | while IFS= read -r -d '' f; do
               ./ossutil64 cp -f "$f" "oss://moyulao/updates/${VER}/$(basename "$f")"
             done
-          # 最后覆盖 latest.json(更新清单,客户端轮询的入口)
+          # 最后覆盖两份清单(覆盖式,始终指向最新版)
           ./ossutil64 cp -f artifacts/latest.json "oss://moyulao/updates/latest.json"
+          ./ossutil64 cp -f artifacts/downloads.json "oss://moyulao/updates/downloads.json"

@@ -1439,3 +1439,173 @@ body {
   opacity: 0.6;
   cursor: default;
 }
+
+/* ===================== 关于 / 外链 ===================== */
+/* discreet header entry — innocuous ⓘ, muted until hover */
+.about-btn {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 15px;
+}
+.about-btn:hover {
+  color: var(--text-secondary);
+}
+
+/* follow links (官网 / GitHub / 抖音) — shared by settings/onboarding/about */
+.follow-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.follow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.follow-link:hover {
+  background: var(--hover);
+  border-color: var(--hover-strong);
+}
+.follow-link-ic {
+  font-size: 14px;
+}
+
+/* about block (in settings section + about modal) */
+.about-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.about-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.about-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.about-ver {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.about-modal {
+  width: 360px;
+  max-width: calc(100vw - 40px);
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+.about-modal-body {
+  padding: 18px;
+}
+.about-pitch {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+/* bottom-center toast */
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 48px;
+  transform: translateX(-50%) translateY(8px);
+  max-width: min(420px, calc(100vw - 48px));
+  padding: 10px 18px;
+  background: rgba(26, 26, 31, 0.92);
+  color: #fff;
+  font-size: 13px;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  z-index: 400;
+  opacity: 0;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: none;
+}
+.app-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===================== 首次引导 ===================== */
+.onboard-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 30, 0.4);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  animation: fadeInUp 0.18s ease-out;
+}
+.onboard-modal {
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+  padding: 26px 24px 20px;
+}
+.onboard-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.onboard-sub {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 18px;
+}
+.onboard-avatar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.onboard-modal .set-id-row {
+  justify-content: flex-start; /* 左对齐,与下方「显示名称」一致(设置面板里是右对齐) */
+}
+.onboard-name {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.onboard-name .set-input {
+  max-width: none; /* 引导里输入框占满,跟头像行左缘对齐 */
+}
+.onboard-hint {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.onboard-follow {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.onboard-follow-tip {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.onboard-foot {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}

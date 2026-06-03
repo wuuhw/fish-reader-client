@@ -28,6 +28,8 @@ export interface AppConfig {
 
   professionId: string; // which disguise profession drives fake work content
   customProfessions: Profession[]; // user-imported professions (via JSON)
+
+  onboarded: boolean; // has the first-run setup (name + avatar) been completed?
 }
 
 export const DEFAULTS: AppConfig = {
@@ -54,6 +56,8 @@ export const DEFAULTS: AppConfig = {
 
   professionId: 'programmer',
   customProfessions: [],
+
+  onboarded: false,
 };
 
 const KEY = 'fishReader.config';

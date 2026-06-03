@@ -30,6 +30,7 @@ const dir = arg('dir', './artifacts');
 const version = (arg('version', '') || '').replace(/^v/, '');
 const base = (arg('base', '')).replace(/\/$/, '');
 const out = arg('out', './latest.json');
+const downloadsOut = arg('downloads-out', '');
 const notes = arg('notes', '本次更新包含若干改进与修复。');
 
 if (!version) throw new Error('missing --version');
@@ -84,3 +85,27 @@ const manifest = {
 writeFileSync(out, JSON.stringify(manifest, null, 2));
 console.log(`wrote ${out}:`);
 console.log(JSON.stringify(manifest, null, 2));
+
+// ---------------------------------------------------------------------------
+// downloads.json — user-facing installers for the official website.
+// Note: macOS points at the .dmg (a first-time install), NOT the .app.tar.gz
+// (that one is only for the in-app updater).
+// ---------------------------------------------------------------------------
+if (downloadsOut) {
+  const dmg = files.find((f) => f.endsWith('.dmg'));
+  const exe = files.find((f) => /-setup\.exe$/i.test(f));
+  const appimage = files.find((f) => f.endsWith('.AppImage'));
+  const deb = files.find((f) => f.endsWith('.deb'));
+
+  const downloads = {
+    version: `v${version}`,
+    pub_date: manifest.pub_date,
+    mac: dmg ? urlOf(dmg) : null,
+    win: exe ? urlOf(exe) : null,
+    linux: appimage ? urlOf(appimage) : null,
+    linuxDeb: deb ? urlOf(deb) : null,
+  };
+  writeFileSync(downloadsOut, JSON.stringify(downloads, null, 2));
+  console.log(`\nwrote ${downloadsOut}:`);
+  console.log(JSON.stringify(downloads, null, 2));
+}

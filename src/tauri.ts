@@ -72,3 +72,17 @@ export async function bossWindow(action: BossAction): Promise<void> {
     /* ignore */
   }
 }
+
+/** Open an external URL in the system browser (官网 / GitHub / 抖音). */
+export async function openExternal(url: string): Promise<void> {
+  if (!inTauri()) {
+    window.open(url, '_blank', 'noopener');
+    return;
+  }
+  try {
+    const { openUrl } = await import('@tauri-apps/plugin-opener');
+    await openUrl(url);
+  } catch {
+    window.open(url, '_blank', 'noopener');
+  }
+}

@@ -13,6 +13,8 @@ import { resolveProfession, bossHistoryName } from './disguise/professions';
 import { inTauri } from './tauri';
 import { checkForUpdate } from './updater';
 import { UpdatePrompt } from './ui/update-modal';
+import { Onboarding } from './ui/onboarding';
+import { openAboutModal } from './ui/about';
 
 const logEl = document.getElementById('log') as HTMLElement;
 const inputEl = document.getElementById('input') as HTMLTextAreaElement;
@@ -140,6 +142,17 @@ const settings = new SettingsPanel(cfg, (next: AppConfig) => {
 });
 
 document.getElementById('brand-block')?.addEventListener('click', () => settings.open());
+
+// ---------- discreet 关于 entry (header ⓘ) ----------
+document.getElementById('about-btn')?.addEventListener('click', () => openAboutModal());
+
+// ---------- first-run onboarding (name + avatar + follow) ----------
+const onboarding = new Onboarding(cfg, (patch: Partial<AppConfig>) => {
+  Object.assign(cfg, patch);
+  saveConfig(cfg);
+  applyIdentity();
+  sidebar.refresh();
+});
 
 // ---------- new chat / add book ----------
 async function openAddBook() {
@@ -487,6 +500,8 @@ async function boot() {
   await wireTauri();
   await controller.start();
   inputEl.focus();
+  // First-run setup (only inside Tauri; browser dev skips it).
+  if (inTauri() && !cfg.onboarded) onboarding.open();
   // Defer the first update check a few seconds so it never competes with boot.
   setTimeout(() => {
     void checkUpdatesOnStart();
