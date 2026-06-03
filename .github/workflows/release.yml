@@ -181,16 +181,19 @@ jobs:
             --out artifacts/latest.json \
             --notes "${{ github.event.head_commit.message || '本次更新包含若干改进与修复。' }}"
 
-      # 安装阿里云官方 CLI(ossutil)
+      # 安装 ossutil:直接下载 v1 官方二进制到工作目录。
+      # 不用官方 install.sh —— 它会把二进制 cp 到 /usr/bin,而 runner 非 root,
+      # 会报 "Permission denied"。直链下载 + chmod 即可,无需 sudo。
       - name: 安装 ossutil
         run: |
-          curl -sSL https://gosspublic.alicdn.com/ossutil/install.sh | bash
-          ossutil --version
+          curl -fsSL -o ossutil64 https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
+          chmod +x ossutil64
+          ./ossutil64 --version
 
       # 配置 OSS 凭证(RAM 子账号,仅授予该 bucket 写权限)
       - name: 配置 ossutil
         run: |
-          ossutil config \
+          ./ossutil64 config \
             -e oss-cn-beijing.aliyuncs.com \
             -i "${{ secrets.OSS_ACCESS_KEY_ID }}" \
             -k "${{ secrets.OSS_ACCESS_KEY_SECRET }}"
@@ -207,7 +210,7 @@ jobs:
             -o -name '*.AppImage' -o -name '*.AppImage.sig' \
             -o -name '*.deb' \) -print0 \
           | while IFS= read -r -d '' f; do
-              ossutil cp -f "$f" "oss://moyulao/updates/${VER}/$(basename "$f")"
+              ./ossutil64 cp -f "$f" "oss://moyulao/updates/${VER}/$(basename "$f")"
             done
           # 最后覆盖 latest.json(更新清单,客户端轮询的入口)
-          ossutil cp -f artifacts/latest.json "oss://moyulao/updates/latest.json"
+          ./ossutil64 cp -f artifacts/latest.json "oss://moyulao/updates/latest.json"
