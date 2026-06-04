@@ -4,6 +4,16 @@
 
 这是 PRD 中 **形态 C · 桌面客户端** 的实现,底层用 **Rust + Tauri 2**,按 `FishReader-PRD.md` 与 VSCode 插件功能一比一复刻。
 
+## 🐟 FishReader 全家桶
+
+FishReader 有**桌面客户端**和 **VS Code 插件**两种形态,书库格式与功能一致,挑顺手的用:
+
+- 🌐 **官网**:<https://moyulao.cn/> — 下载、介绍、更新一站获取
+- 💻 **桌面客户端**(本项目,Windows / macOS / Linux):伪装成豆包风格 AI 助手 → [wuuhw/fish-reader-client](https://github.com/wuuhw/fish-reader-client)
+- 🧩 **VS Code 插件**:伪装成 Claude Code 代码审查 → [wuuhw/fish-reader-vscode](https://github.com/wuuhw/fish-reader-vscode)
+
+> 在公司用 VS Code?→ 试试 [fish-reader-vscode](https://github.com/wuuhw/fish-reader-vscode) ·  更多请访问官网 [moyulao.cn](https://moyulao.cn/)
+
 ## 技术架构
 
 | 层 | 实现 |
