@@ -13,7 +13,7 @@
 // Pushing the tag triggers .github/workflows/release.yml → build → sign →
 // upload to Aliyun OSS. Old clients then see the update.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -24,6 +24,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PKG = join(root, 'package.json');
 const CONF = join(root, 'src-tauri', 'tauri.conf.json');
 const CARGO = join(root, 'src-tauri', 'Cargo.toml');
+const NOTES = join(root, 'RELEASE_NOTES.md');
 
 const C = { dim: (s) => `\x1b[2m${s}\x1b[0m`, b: (s) => `\x1b[1m${s}\x1b[0m`, g: (s) => `\x1b[32m${s}\x1b[0m`, r: (s) => `\x1b[31m${s}\x1b[0m`, y: (s) => `\x1b[33m${s}\x1b[0m` };
 
@@ -84,6 +85,27 @@ try {
   // tag must not already exist
   const tags = sh('git tag --list').split('\n');
   if (tags.includes(tag)) die(`tag ${tag} 已存在。`);
+
+  // --- review the user-facing release notes (RELEASE_NOTES.md) ---
+  // 这段会原样进 latest.json 的 notes,显示在用户的更新弹窗里。
+  if (existsSync(NOTES)) {
+    const notesText = readFileSync(NOTES, 'utf8').trim();
+    console.log(`\n  ${C.b('本次更新说明')} ${C.dim('(RELEASE_NOTES.md → 用户更新弹窗):')}`);
+    console.log(
+      (notesText || '(空)')
+        .split('\n')
+        .map((l) => C.dim('    │ ') + l)
+        .join('\n')
+    );
+    const ok = (await rl.question(`\n  这段就是要给用户看的更新说明? (${C.b('y')} 继续 / n 先去改): `)).trim().toLowerCase();
+    if (ok !== 'y' && ok !== 'yes') {
+      die('已取消。请编辑 RELEASE_NOTES.md 写好本次更新内容后,重新运行 pnpm release。');
+    }
+  } else {
+    console.log(C.y('\n  ⚠ 未找到 RELEASE_NOTES.md —— 更新说明将回退为本次提交主题(首行)。'));
+    const ok = (await rl.question(`  继续? (${C.b('y')} / n): `)).trim().toLowerCase();
+    if (ok !== 'y' && ok !== 'yes') die('已取消。');
+  }
 
   // --- bump the three version sources ---
   bumpJsonVersion(PKG, answer);

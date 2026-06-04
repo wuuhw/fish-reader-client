@@ -2,6 +2,7 @@ import { el } from './dom';
 import { BRAND, APP_VERSION, FOLLOW_PITCH } from '../brand';
 import { openExternal } from '../tauri';
 import { showToast } from './toast';
+import { updatePrompt } from './update-modal';
 
 /** Copy the 抖音 number to clipboard and toast (抖音 has no web profile to open). */
 async function copyDouyin() {
@@ -50,6 +51,25 @@ export function buildAboutBlock(): HTMLElement {
   const head = el('div', 'about-head');
   head.appendChild(el('span', 'about-name', BRAND.name));
   head.appendChild(el('span', 'about-ver', `v${APP_VERSION}`));
+
+  const pending = updatePrompt.pendingInfo();
+  if (pending) {
+    // An update was detected while running — offer it here (deferrable).
+    const go = el('button', 'about-check about-update', `更新到 ${pending.version}`);
+    go.addEventListener('click', () => updatePrompt.openPending());
+    head.appendChild(go);
+  } else {
+    const checkBtn = el('button', 'about-check', '检查更新');
+    checkBtn.addEventListener('click', async () => {
+      checkBtn.disabled = true;
+      checkBtn.textContent = '检查中…';
+      await updatePrompt.manualCheck();
+      checkBtn.disabled = false;
+      checkBtn.textContent = '检查更新';
+    });
+    head.appendChild(checkBtn);
+  }
+
   box.appendChild(head);
   box.appendChild(el('div', 'about-pitch', FOLLOW_PITCH));
   box.appendChild(buildFollowLinks());

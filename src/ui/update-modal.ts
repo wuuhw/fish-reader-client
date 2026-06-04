@@ -1,5 +1,7 @@
 import { el } from './dom';
-import { UpdateInfo, runUpdate } from '../updater';
+import { UpdateInfo, runUpdate, checkForUpdate } from '../updater';
+import { showToast } from './toast';
+import { APP_VERSION } from '../brand';
 
 /** Human-readable byte size. */
 function fmtBytes(n: number): string {
@@ -16,31 +18,52 @@ function fmtBytes(n: number): string {
  *    modal (still offering 立即更新, but the user may defer).
  */
 export class UpdatePrompt {
-  private head: HTMLElement;
-  private badge?: HTMLElement;
   private latest?: UpdateInfo;
   private modalOpen = false;
 
-  constructor() {
-    this.head = document.getElementById('main-head')!;
-  }
-
-  /** Cold-start: an update was found before the user did anything — force it. */
+  /** Cold-start: an update found at launch — forced modal, no skip, no close. */
   forced(info: UpdateInfo) {
     this.openModal(info, true);
   }
 
-  /** Running app: surface a low-key red badge; details on click, deferrable. */
-  badgePrompt(info: UpdateInfo) {
+  /**
+   * Running app (poll): do NOT interrupt — just flag a red "new" on the ⓘ 关于
+   * icon. The user opens it on their own terms; that modal is cancellable.
+   */
+  markBadge(info: UpdateInfo) {
     this.latest = info;
-    if (this.badge) return; // badge already visible
-    const b = el('button', 'update-badge');
-    b.title = `发现新版本 ${info.version}，点击查看`;
-    b.appendChild(el('span', 'update-badge-dot'));
-    b.appendChild(el('span', 'update-badge-text', '有新版本'));
-    b.addEventListener('click', () => this.latest && this.openModal(this.latest, false));
-    this.head.appendChild(b);
-    this.badge = b;
+    document.getElementById('about-btn')?.classList.add('has-update');
+  }
+
+  /** Is there a pending update the user hasn't acted on yet? */
+  hasPending(): boolean {
+    return !!this.latest;
+  }
+
+  /** The pending update info (for the 关于 panel to render an update banner). */
+  pendingInfo(): UpdateInfo | undefined {
+    return this.latest;
+  }
+
+  /** User-initiated open of the pending update — deferrable (cancellable). */
+  openPending() {
+    if (this.latest) this.openModal(this.latest, false);
+  }
+
+  /**
+   * Manual "检查更新" (from 关于). Checks immediately; opens the (deferrable)
+   * modal if an update exists, otherwise toasts "已是最新". Returns whether an
+   * update was found, so callers can give button feedback.
+   */
+  async manualCheck(): Promise<boolean> {
+    const info = await checkForUpdate();
+    if (info) {
+      this.markBadge(info);
+      this.openModal(info, false);
+      return true;
+    }
+    showToast(`当前已是最新版本 v${APP_VERSION}`);
+    return false;
   }
 
   private openModal(info: UpdateInfo, forced: boolean) {
@@ -123,3 +146,6 @@ export class UpdatePrompt {
     });
   }
 }
+
+/** Shared instance — used by main.ts (startup/poll) and the 关于「检查更新」按钮. */
+export const updatePrompt = new UpdatePrompt();

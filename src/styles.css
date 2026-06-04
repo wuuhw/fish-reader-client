@@ -1305,33 +1305,7 @@ body {
 }
 
 /* ===================== auto-update ===================== */
-/* red badge in the header (running-app, deferrable) */
-.update-badge {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border: 1px solid #f3c2c2;
-  background: #fdecec;
-  color: #cb2431;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-.update-badge:hover {
-  background: #fbdada;
-}
-.update-badge-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #e5484d;
-  box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.5);
-  animation: updatePulse 1.6s ease-out infinite;
-}
+/* the running-app "new" flag lives on the ⓘ 关于 icon (see .about-btn.has-update) */
 @keyframes updatePulse {
   0% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.5); }
   70% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); }
@@ -1446,9 +1420,27 @@ body {
   margin-left: auto;
   color: var(--text-tertiary);
   font-size: 15px;
+  position: relative;
 }
 .about-btn:hover {
   color: var(--text-secondary);
+}
+/* red "new" flag when an update was detected while running */
+.about-btn.has-update::after {
+  content: 'new';
+  position: absolute;
+  top: -3px;
+  right: -7px;
+  padding: 0 4px;
+  height: 13px;
+  line-height: 13px;
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  background: #e5484d;
+  border-radius: 7px;
+  box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.5);
+  animation: updatePulse 1.6s ease-out infinite;
 }
 
 /* follow links (官网 / GitHub / 抖音) — shared by settings/onboarding/about */
@@ -1496,6 +1488,33 @@ body {
 .about-ver {
   font-size: 12px;
   color: var(--text-secondary);
+}
+.about-check {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.about-check:hover {
+  background: var(--hover);
+}
+.about-check:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+/* pending-update variant: filled red to stand out */
+.about-update {
+  border-color: #e5484d;
+  background: #e5484d;
+  color: #fff;
+}
+.about-update:hover {
+  background: #d23b40;
 }
 .about-modal {
   width: 360px;

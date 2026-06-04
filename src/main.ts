@@ -12,7 +12,7 @@ import { loadConfig, saveConfig, AppConfig } from './config';
 import { resolveProfession, bossHistoryName } from './disguise/professions';
 import { inTauri } from './tauri';
 import { checkForUpdate } from './updater';
-import { UpdatePrompt } from './ui/update-modal';
+import { updatePrompt } from './ui/update-modal';
 import { Onboarding } from './ui/onboarding';
 import { openAboutModal } from './ui/about';
 
@@ -473,11 +473,11 @@ async function wireTauri() {
 
 // ---------- auto-update ----------
 // Two flows (desktop only; no-op in browser dev):
-//  • cold start  → an update found here is forced (mandatory modal, no skip).
-//  • while open  → poll every 30 min; a new version shows a red header badge
-//                  the user can open and update at their leisure.
-const updatePrompt = new UpdatePrompt();
-const UPDATE_POLL_MS = 30 * 60 * 1000;
+//  • cold start  → an update found here is FORCED (modal can't be closed/skipped).
+//  • while open  → poll every 5 min; a new version only flags a red "new" on the
+//                  ⓘ 关于 icon — never auto-pops a modal (no interruption). The
+//                  user opens it from 关于; that modal IS cancellable.
+const UPDATE_POLL_MS = 5 * 60 * 1000;
 
 async function checkUpdatesOnStart() {
   const info = await checkForUpdate();
@@ -487,7 +487,7 @@ async function checkUpdatesOnStart() {
 function startUpdatePolling() {
   setInterval(async () => {
     const info = await checkForUpdate();
-    if (info) updatePrompt.badgePrompt(info);
+    if (info) updatePrompt.markBadge(info);
   }, UPDATE_POLL_MS);
 }
 
