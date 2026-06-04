@@ -91,7 +91,7 @@ const tocPanel = new TocPanel(
 const sidebar = new Sidebar(state, {
   onOpenBook: (id) => {
     if (controller.isBoss) {
-      controller.pokeBoss();
+      controller.selectBossConversation(id); // switch fake conversation, no leak
       return;
     }
     hardReset();
@@ -110,6 +110,7 @@ const sidebar = new Sidebar(state, {
   },
   isBoss: () => controller.isBoss,
   currentBookId: () => controller.currentBookId(),
+  bossSelectedId: () => controller.currentBossId(),
   fakeName: (i) => bossHistoryName(resolveProfession(cfg), i),
 });
 

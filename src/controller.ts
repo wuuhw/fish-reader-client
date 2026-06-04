@@ -2,7 +2,7 @@ import { UI } from './ui/dom';
 import { ReaderEngine, Segment } from './engine/reader';
 import { StateStore, BookRecord } from './engine/state';
 import { COMMANDS, parseInput } from './commands/registry';
-import { resolveProfession, pickReadingInsert, nextBossTurns } from './disguise/professions';
+import { resolveProfession, pickReadingInsert, nextBossTurns, bossTurnsForKey } from './disguise/professions';
 import { initThinkingLog } from './disguise/thinking-animator';
 import { AppConfig, mergeTarget } from './config';
 import { parseEpub } from './engine/formats/epub';
@@ -30,6 +30,7 @@ export class Controller {
   private bossActive = false;
   private bossTrigger?: BossTrigger;
   private bossSavedPosition = 0;
+  private bossSelectedId?: string; // which 历史对话 row is shown in boss mode
   private mouseLeaveTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
@@ -52,9 +53,22 @@ export class Controller {
     return this.engine?.meta.id;
   }
 
-  /** Emit one more fake "working" turn — used when a 历史对话 row is clicked in boss mode. */
-  pokeBoss() {
-    if (this.bossActive) this.emitBossTurns(1);
+  /** Id of the 历史对话 row shown in boss mode (for sidebar highlight). */
+  currentBossId(): string | undefined {
+    return this.bossSelectedId;
+  }
+
+  /**
+   * Boss mode: switch the shown 历史对话 to another (fake) conversation — like
+   * clicking a different chat. Clears the view and renders that row's stable,
+   * distinct fake conversation, then highlights it.
+   */
+  selectBossConversation(id: string) {
+    if (!this.bossActive || this.cfg.bossAction !== 'disguise') return;
+    this.bossSelectedId = id;
+    this.hooks.hardReset();
+    this.emitBossConversationFor(id);
+    this.hooks.onBooksChanged?.(); // re-render sidebar so the row highlights
   }
 
   /** If the open book was deleted/hidden from the sidebar, drop it from view. */
@@ -540,14 +554,25 @@ export class Controller {
     }
 
     // Default: render a preset "working" Q&A conversation.
+    // Highlight the currently-open book's row as the active 历史对话 (if any).
+    this.bossSelectedId = this.currentBookId();
     this.hooks.hardReset();
     this.hooks.onBossChange?.(true);
     this.emitBossTurns(Math.max(1, this.cfg.bossFakeConversationCount));
   }
 
   private emitBossTurns(n: number) {
+    this.renderBossTurns(nextBossTurns(resolveProfession(this.cfg), n));
+  }
+
+  /** Render the stable, distinct fake conversation for a given 历史对话 row id. */
+  private emitBossConversationFor(id: string) {
     const prof = resolveProfession(this.cfg);
-    const turns = nextBossTurns(prof, n);
+    const n = Math.max(1, this.cfg.bossFakeConversationCount);
+    this.renderBossTurns(bossTurnsForKey(prof, id, n));
+  }
+
+  private renderBossTurns(turns: ReturnType<typeof nextBossTurns>) {
     for (const t of turns) {
       this.enqueue(async () => this.ui.user(t.prompt));
       this.enqueue(() => this.ui.thinking(t.thinking));
@@ -566,6 +591,7 @@ export class Controller {
     if (!this.bossActive) return;
     this.bossActive = false;
     this.bossTrigger = undefined;
+    this.bossSelectedId = undefined;
 
     if (this.cfg.bossAction === 'minimize' || this.cfg.bossAction === 'hide') {
       void bossWindow('show');

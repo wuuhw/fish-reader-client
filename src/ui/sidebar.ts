@@ -7,6 +7,8 @@ export interface SidebarHooks {
   onHideBook: (id: string) => void;
   isBoss: () => boolean;
   currentBookId: () => string | undefined;
+  /** Which 历史对话 row is the active (shown) fake conversation in boss mode. */
+  bossSelectedId: () => string | undefined;
   /** Profession-specific fake 历史对话 title for boss mode (by row index). */
   fakeName: (index: number) => string;
 }
@@ -72,7 +74,9 @@ export class Sidebar {
     for (const b of books) if (!this.order.includes(b.id)) this.order.unshift(b.id);
 
     const ordered = this.order.map((id) => byId.get(id)!).filter(Boolean);
-    const currentId = this.hooks.currentBookId();
+    // In boss mode the highlight follows the selected fake conversation;
+    // otherwise it follows the actually-open book.
+    const activeId = this.boss ? this.hooks.bossSelectedId() : this.hooks.currentBookId();
     this.listEl.textContent = '';
 
     if (!ordered.length) {
@@ -83,7 +87,7 @@ export class Sidebar {
     }
 
     ordered.forEach((b, i) => {
-      const item = el('div', 'hist-item' + (b.id === currentId ? ' active' : ''));
+      const item = el('div', 'hist-item' + (b.id === activeId ? ' active' : ''));
       item.dataset.id = b.id;
       item.appendChild(el('span', 'hist-ic', '💬'));
       const title = el('span', 'hist-title', this.boss ? this.hooks.fakeName(i) : b.title);

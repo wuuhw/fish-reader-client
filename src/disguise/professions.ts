@@ -225,6 +225,22 @@ export function nextBossTurns(prof: Profession, n: number): BossTurn[] {
   return out;
 }
 
+/**
+ * Deterministic N boss turns keyed by an arbitrary string — same key always
+ * yields the same conversation. Used so each 历史对话 row in boss mode maps to a
+ * stable, distinct fake conversation when switched to.
+ */
+export function bossTurnsForKey(prof: Profession, key: string, n: number): BossTurn[] {
+  const pool = prof.bossTurns;
+  if (!pool.length) return [];
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  const start = h % pool.length;
+  const out: BossTurn[] = [];
+  for (let i = 0; i < n; i++) out.push(pool[(start + i) % pool.length]);
+  return out;
+}
+
 // =========================================================================
 // JSON import + the prompt users paste into another AI
 // =========================================================================
