@@ -1,7 +1,7 @@
 import { CommandSpec } from '../types';
 
 export const COMMANDS: CommandSpec[] = [
-  { name: '/init', display: '/init', aliases: ['/open', '/load', '/打开'], description: '关联本地 txt 文件', paramHint: '<path>' },
+  { name: '/init', display: '/init', aliases: ['/open', '/load', '/打开'], description: '关联本地 txt 文件 或 小说网址', paramHint: '<path|url>' },
   { name: '/目录', display: '/toc', aliases: ['/toc', '/contents'], description: '查看章节列表' },
   { name: '/下一页', display: '/next', aliases: ['/n', '/next', '/下一章', '/下一段'], description: '下一章(整章输出)' },
   { name: '/上一页', display: '/prev', aliases: ['/p', '/prev', '/上一章', '/上一段'], description: '上一章' },

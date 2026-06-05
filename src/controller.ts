@@ -1,6 +1,6 @@
 import { UI } from './ui/dom';
 import { ReaderEngine, Segment } from './engine/reader';
-import { StateStore, BookRecord } from './engine/state';
+import { StateStore, BookRecord, bookId } from './engine/state';
 import { COMMANDS, parseInput } from './commands/registry';
 import { resolveProfession, pickReadingInsert, nextBossTurns, bossTurnsForKey } from './disguise/professions';
 import { initThinkingLog } from './disguise/thinking-animator';
@@ -8,7 +8,11 @@ import { AppConfig, mergeTarget } from './config';
 import { parseEpub } from './engine/formats/epub';
 import { parseFb2 } from './engine/formats/fb2';
 import { chaptersToText } from './engine/formats/structured';
-import { readBook, readBytes, bossWindow } from './tauri';
+import { readBook, readBytes, bossWindow, fetchUrl } from './tauri';
+import { extractChapter, extractToc, WebChapter } from './engine/web/extract';
+import { getRuleForUrl, saveRule, hostOf } from './engine/web/rules';
+import { getCachedToc, setCachedToc, clearCachedToc } from './engine/web/toc-cache';
+import { PageMeta } from './types';
 
 export type BossTrigger = 'hotkey' | 'button' | 'mouseLeave' | 'blur' | 'command';
 
@@ -25,8 +29,35 @@ export interface ControllerHooks {
   onToc?: () => void;
 }
 
+/** Stable per-novel key (same for every chapter) → the library record id.
+ * Prefer the 目录 URL; else the chapter URL's directory. */
+function webBookKey(chapterUrl: string, tocUrl?: string): string {
+  if (tocUrl) return tocUrl;
+  try {
+    const u = new URL(chapterUrl);
+    u.hash = '';
+    u.search = '';
+    u.pathname = u.pathname.replace(/\/[^/]*$/, '/'); // drop the filename
+    return u.href;
+  } catch {
+    return chapterUrl;
+  }
+}
+
+/** Active web-novel reading session (chapter-by-chapter, lazy-fetched). */
+interface WebSession {
+  bookId: string; // the library record this session reads/updates
+  host: string;
+  url: string;
+  title: string;
+  nextUrl?: string;
+  prevUrl?: string;
+  tocUrl?: string;
+}
+
 export class Controller {
   private engine?: ReaderEngine;
+  private web?: WebSession; // active web-novel reading session (mutually exclusive with engine)
   private bossActive = false;
   private bossTrigger?: BossTrigger;
   private bossSavedPosition = 0;
@@ -50,7 +81,7 @@ export class Controller {
 
   /** Id of the book currently open (for sidebar highlighting). */
   currentBookId(): string | undefined {
-    return this.engine?.meta.id;
+    return this.engine?.meta.id ?? this.web?.bookId;
   }
 
   /** Id of the 历史对话 row shown in boss mode (for sidebar highlight). */
@@ -73,12 +104,14 @@ export class Controller {
 
   /** If the open book was deleted/hidden from the sidebar, drop it from view. */
   forgetBookIfOpen(id: string) {
-    if (this.engine?.meta.id === id) {
+    if (this.engine?.meta.id === id || this.web?.bookId === id) {
       this.engine = undefined;
+      this.web = undefined;
       this.hooks.hardReset();
       this.ui.setBookTitle('');
       this.showWelcome();
     }
+    clearCachedToc(id); // drop any cached 目录 for the removed book
   }
 
   // ---------- lifecycle ----------
@@ -89,6 +122,7 @@ export class Controller {
   /** Start a fresh reading session (caller is expected to hardReset first). */
   startNewSession() {
     this.engine = undefined;
+    this.web = undefined;
     this.ui.setBookTitle('');
     this.showWelcome();
   }
@@ -109,6 +143,10 @@ export class Controller {
       this.showWelcome();
       return;
     }
+    if (rec.web?.currentUrl) {
+      await this.webOpen(rec.web.currentUrl); // resume web novel at last chapter
+      return;
+    }
     await this.switchBook(rec);
   }
 
@@ -116,6 +154,11 @@ export class Controller {
     const rec = this.state.getLastBook();
     if (!rec) {
       this.showWelcome();
+      return;
+    }
+    if (rec.web?.currentUrl) {
+      this.enqueue(async () => this.ui.streamText(undefined, `正在恢复《${rec.title}》…`));
+      await this.webOpen(rec.web.currentUrl);
       return;
     }
     try {
@@ -208,6 +251,7 @@ export class Controller {
 
   // ---------- /init ----------
   private async loadBook(filePath: string, position = 0) {
+    this.web = undefined; // opening a local book leaves web mode
     const baseName = filePath.split(/[\\/]/).pop() ?? 'book.txt';
     const ext = baseName.toLowerCase().split('.').pop() ?? '';
     const baseOpts = {
@@ -259,7 +303,12 @@ export class Controller {
   private async cmdInit(rawPath: string) {
     const p = rawPath.trim().replace(/^["']|["']$/g, '');
     if (!p) {
-      this.enqueue(async () => this.ui.staticText(undefined, '用法:/init <txt 文件路径>', false));
+      this.enqueue(async () => this.ui.staticText(undefined, '用法:/init <txt 文件路径 或 网址>', false));
+      return;
+    }
+    // A URL → web-novel flow (auto-detect / manual record).
+    if (/^https?:\/\//i.test(p)) {
+      this.cmdInitWeb(p);
       return;
     }
     try {
@@ -284,6 +333,224 @@ export class Controller {
     }
   }
 
+  // ---------- /init <url> : web-novel reading ----------
+
+  /** Entry for a URL. Known host → read straight away; else offer auto / manual. */
+  private cmdInitWeb(url: string) {
+    if (getRuleForUrl(url)) {
+      // Seen this site before → its rule already works, just read.
+      void this.webOpen(url);
+      return;
+    }
+    this.enqueue(async () =>
+      this.ui.actions('这是一个网址,怎么解析?', [
+        { label: '🔍 自动识别', onClick: () => void this.webOpen(url, { auto: true }) },
+        { label: '✋ 手动识别', onClick: () => this.webManualRecord(url) },
+      ])
+    );
+  }
+
+  /** Fetch + extract + render a web chapter, set up the session for navigation. */
+  private async webOpen(url: string, opts: { auto?: boolean } = {}) {
+    const rule = getRuleForUrl(url);
+    this.enqueue(() => this.ui.thinking(['正在抓取网页…', '提取正文与翻页…']));
+    let page;
+    try {
+      page = await fetchUrl(url);
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      if (msg.includes('challenge:cloudflare')) {
+        this.enqueue(async () =>
+          this.ui.staticText(
+            undefined,
+            '这个站有「人机验证(Cloudflare)」,纯抓取过不去。\n该能力(隐藏浏览器过验证)在后续版本支持。',
+            false
+          )
+        );
+      } else {
+        this.enqueue(async () => this.ui.staticText(undefined, `抓取失败:${msg}`, false));
+      }
+      return;
+    }
+
+    const ch = extractChapter(page.html, page.finalUrl, rule);
+    if (!ch.paragraphs.length) {
+      this.enqueue(async () =>
+        this.ui.actions(`没能从这个页面提取到正文(${ch.reason})。`, [
+          { label: '✋ 手动识别', onClick: () => this.webManualRecord(page!.finalUrl) },
+        ])
+      );
+      return;
+    }
+
+    // Identify the novel (stable across chapters) → a library record.
+    const host = hostOf(page.finalUrl);
+    const key = webBookKey(page.finalUrl, ch.tocUrl);
+    const id = bookId(key);
+
+    // Enter web mode (drop any local book).
+    this.engine = undefined;
+    this.web = {
+      bookId: id,
+      host,
+      url: page.finalUrl,
+      title: ch.title,
+      nextUrl: ch.nextUrl,
+      prevUrl: ch.prevUrl,
+      tocUrl: ch.tocUrl,
+    };
+    this.ui.setBookTitle(ch.bookTitle || ch.title);
+
+    // Upsert the 历史会话 entry so the web novel shows up in the library and
+    // reopening resumes at the last-read chapter.
+    const existing = this.state.getBook(id);
+    const rec: BookRecord = {
+      id,
+      path: key,
+      title: ch.bookTitle || existing?.title || ch.title,
+      totalChapters: existing?.totalChapters ?? 0,
+      totalChars: 0,
+      position: 0,
+      lastReadAt: Date.now(),
+      bookmarks: existing?.bookmarks ?? [],
+      hidden: existing?.hidden,
+      web: { currentUrl: page.finalUrl, tocUrl: ch.tocUrl, tocCached: existing?.web?.tocCached },
+    };
+    this.state.upsertBook(rec);
+    this.hooks.onBooksChanged?.();
+
+    this.renderWebChapter(ch);
+
+    // Remember the site so next time we skip the chooser and read directly.
+    if (opts.auto && ch.confidence >= 0.5 && host) {
+      saveRule({ host });
+    }
+
+    // Fetch + cache the 目录 once per book (background; updates chapter count).
+    if (ch.tocUrl && !rec.web?.tocCached) {
+      void this.cacheWebToc(id, ch.tocUrl);
+    }
+
+    // Low confidence → tell the user and offer to teach it (per the spec).
+    if (ch.confidence < 0.5) {
+      this.enqueue(async () =>
+        this.ui.actions(`自动识别可能不准(${ch.reason})。如果读着不对,可以手动校正:`, [
+          { label: '✋ 转手动识别', onClick: () => this.webManualRecord(this.web?.url ?? url) },
+        ])
+      );
+    }
+  }
+
+  /** Navigate the web session to the next/prev chapter. */
+  private async webGo(dir: 'next' | 'prev') {
+    const sess = this.web;
+    if (!sess) return;
+    const target = dir === 'next' ? sess.nextUrl : sess.prevUrl;
+    if (!target) {
+      this.enqueue(async () =>
+        this.ui.streamText(undefined, dir === 'next' ? '已经是最后一章了。' : '已经是第一章了。')
+      );
+      return;
+    }
+    await this.webOpen(target);
+  }
+
+  /** Show the 目录: cached chapter list if available, else fetch (+cache). */
+  private async webToc() {
+    const sess = this.web;
+    if (!sess) return;
+
+    const cached = getCachedToc(sess.bookId);
+    if (cached?.length) {
+      this.enqueue(async () =>
+        this.ui.webToc(
+          '目录',
+          cached.map((c) => ({ title: c.title, onClick: () => void this.webOpen(c.url) }))
+        )
+      );
+      return;
+    }
+
+    if (!sess.tocUrl) {
+      this.enqueue(async () => this.ui.staticText(undefined, '这个站没识别到「目录」链接。', false));
+      return;
+    }
+    this.enqueue(() => this.ui.thinking(['正在抓取目录…']));
+    try {
+      const page = await fetchUrl(sess.tocUrl);
+      const toc = extractToc(page.html, page.finalUrl, getRuleForUrl(sess.tocUrl));
+      if (!toc.chapters.length) {
+        this.enqueue(async () => this.ui.staticText(undefined, '没能解析出章节列表。', false));
+        return;
+      }
+      setCachedToc(sess.bookId, toc.chapters);
+      this.markTocCached(sess.bookId, toc.chapters.length);
+      this.enqueue(async () =>
+        this.ui.webToc(
+          toc.title,
+          toc.chapters.map((c) => ({ title: c.title, onClick: () => void this.webOpen(c.url) }))
+        )
+      );
+    } catch (e: any) {
+      this.enqueue(async () =>
+        this.ui.staticText(undefined, `抓取目录失败:${e?.message ?? e}`, false)
+      );
+    }
+  }
+
+  /** Background: fetch + cache the 目录 once per book; update chapter count. */
+  private async cacheWebToc(id: string, tocUrl: string) {
+    try {
+      const page = await fetchUrl(tocUrl);
+      const toc = extractToc(page.html, page.finalUrl, getRuleForUrl(tocUrl));
+      if (!toc.chapters.length) return;
+      setCachedToc(id, toc.chapters);
+      this.markTocCached(id, toc.chapters.length);
+    } catch {
+      /* best-effort; 目录 can still be fetched on demand later */
+    }
+  }
+
+  private markTocCached(id: string, total: number) {
+    const rec = this.state.getBook(id);
+    if (!rec) return;
+    this.state.upsertBook({
+      ...rec,
+      totalChapters: total,
+      web: { ...(rec.web ?? { currentUrl: '' }), tocCached: true },
+    });
+    this.hooks.onBooksChanged?.();
+  }
+
+  /** Render a fetched web chapter through the normal chapter pipeline. */
+  private renderWebChapter(ch: WebChapter) {
+    const mk = (text: string, atStart: boolean): Segment => {
+      const meta: PageMeta = {
+        chapterIndex: 0,
+        chapterTitle: ch.title,
+        pageInChapter: 0,
+        pagesInChapter: 1,
+        charOffset: 0,
+        atChapterStart: atStart,
+      };
+      return { text, meta, startOffset: 0, endOffset: 0, done: false };
+    };
+    const segs: Segment[] = [mk('', true), ...ch.paragraphs.map((p) => mk(p, false))];
+    this.emitChapter(segs);
+  }
+
+  /** Manual-record (teach-by-clicking) — scaffolded; full wizard next increment. */
+  private webManualRecord(url: string) {
+    this.enqueue(async () =>
+      this.ui.staticText(
+        undefined,
+        '手动识别(在网页上分步点选 正文 / 上一页 / 下一页 / 目录,录成本站规则)' +
+          `即将上线。\n目标页:${url}`,
+        false
+      )
+    );
+  }
+
   // ---------- reading ----------
   private requireBook(): ReaderEngine | undefined {
     if (!this.engine) {
@@ -296,6 +563,10 @@ export class Controller {
   }
 
   cmdNext() {
+    if (this.web) {
+      this.webGo('next');
+      return;
+    }
     const eng = this.requireBook();
     if (!eng) return;
     const res = eng.nextChapter();
@@ -308,6 +579,10 @@ export class Controller {
   }
 
   cmdPrev() {
+    if (this.web) {
+      this.webGo('prev');
+      return;
+    }
     const eng = this.requireBook();
     if (!eng) return;
     const res = eng.prevChapter();
@@ -363,6 +638,10 @@ export class Controller {
   }
 
   private cmdToc() {
+    if (this.web) {
+      this.webToc();
+      return;
+    }
     if (!this.engine) {
       this.enqueue(async () =>
         this.ui.staticText(undefined, '还没有打开的书。先用 /init <路径> 关联一本。', false)

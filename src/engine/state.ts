@@ -9,6 +9,13 @@ export interface Bookmark {
   createdAt: number;
 }
 
+/** Web-novel specifics, present only on records that came from a URL. */
+export interface WebBookData {
+  currentUrl: string; // last-read chapter URL (resume point)
+  tocUrl?: string; // 目录 page URL
+  tocCached?: boolean; // whether the chapter list has been fetched + cached
+}
+
 export interface BookRecord {
   id: string;
   path: string;
@@ -19,6 +26,7 @@ export interface BookRecord {
   lastReadAt: number;
   bookmarks: Bookmark[];
   hidden?: boolean; // hidden from the 历史对话 list but kept on disk
+  web?: WebBookData; // present → this is a web-novel record, not a local file
 }
 
 interface StoreShape {

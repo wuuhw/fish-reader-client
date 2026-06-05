@@ -73,6 +73,30 @@ export async function bossWindow(action: BossAction): Promise<void> {
   }
 }
 
+export interface WebPage {
+  html: string;
+  finalUrl: string;
+  encoding: string;
+  status: number;
+}
+
+/**
+ * Fetch a web page's HTML (Rust-side request → no browser CORS; GB2312/GBK
+ * decoded like local files). Throws "challenge:cloudflare" when blocked by a
+ * Cloudflare bot challenge (frontend escalates to a webview in a later phase).
+ */
+export async function fetchUrl(url: string): Promise<WebPage> {
+  if (!inTauri()) {
+    // Browser dev can't bypass CORS; the web-reader is a Tauri-only feature.
+    throw new Error('网页抓取仅在桌面客户端可用');
+  }
+  const r = await invoke<{ html: string; final_url: string; encoding: string; status: number }>(
+    'fetch_url',
+    { url }
+  );
+  return { html: r.html, finalUrl: r.final_url, encoding: r.encoding, status: r.status };
+}
+
 /** Open an external URL in the system browser (官网 / GitHub / 抖音). */
 export async function openExternal(url: string): Promise<void> {
   if (!inTauri()) {

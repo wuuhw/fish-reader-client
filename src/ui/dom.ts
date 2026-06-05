@@ -310,6 +310,33 @@ export class UI {
     this.scroll();
   }
 
+  // ---- action buttons (web-novel chooser / manual-record entry) ----
+  actions(label: string | undefined, buttons: { label: string; onClick: () => void }[]) {
+    const { body } = this.beginAI(label);
+    const row = el('div', 'action-row');
+    for (const b of buttons) {
+      const btn = el('button', 'action-btn', b.label);
+      btn.addEventListener('click', () => b.onClick());
+      row.appendChild(btn);
+    }
+    body.appendChild(row);
+    this.scroll();
+  }
+
+  // ---- web 目录 (clickable chapter list fetched from a site) ----
+  webToc(title: string, chapters: { title: string; onClick: () => void }[]) {
+    const { body } = this.beginAI(title || '目录');
+    const list = el('div', 'toc-list');
+    chapters.forEach((c) => {
+      const item = el('div', 'toc-item');
+      item.textContent = c.title;
+      item.addEventListener('click', () => c.onClick());
+      list.appendChild(item);
+    });
+    body.appendChild(list);
+    this.scroll();
+  }
+
   // ---- chrome ----
   setMainTitle(text: string) {
     this.mainTitle.textContent = text || '豆包';

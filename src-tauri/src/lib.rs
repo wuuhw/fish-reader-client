@@ -134,6 +134,65 @@ fn read_book(path: String, forced: Option<String>) -> Result<BookFile, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Web fetch (read novel sites). Rust-side request avoids browser CORS; reuses
+// the same encoding detection so GB2312/GBK pages decode correctly.
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize)]
+pub struct WebPage {
+    html: String,
+    final_url: String,
+    encoding: String,
+    status: u16,
+}
+
+#[tauri::command]
+async fn fetch_url(url: String) -> Result<WebPage, String> {
+    let client = reqwest::Client::builder()
+        .user_agent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
+             (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        )
+        .build()
+        .map_err(|e| format!("客户端初始化失败: {e}"))?;
+
+    let resp = client
+        .get(&url)
+        .header("Accept-Language", "zh-CN,zh;q=0.9")
+        .send()
+        .await
+        .map_err(|e| format!("请求失败: {e}"))?;
+
+    let status = resp.status();
+    let final_url = resp.url().to_string();
+    let server = resp
+        .headers()
+        .get("server")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+
+    // Cloudflare / bot challenge: signal it distinctly so the frontend can
+    // escalate to a webview (Phase 2) instead of treating it as plain content.
+    if status.as_u16() == 403 && server.to_lowercase().contains("cloudflare") {
+        return Err("challenge:cloudflare".into());
+    }
+
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("读取响应失败: {e}"))?;
+    let (html, encoding) = decode_buffer(bytes.as_ref(), "auto");
+
+    Ok(WebPage {
+        html,
+        final_url,
+        encoding,
+        status: status.as_u16(),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // State persistence (a single JSON blob in the app config dir — like globalState)
 // ---------------------------------------------------------------------------
 
@@ -204,7 +263,8 @@ pub fn run() {
             read_bytes,
             load_state,
             save_state,
-            boss_window
+            boss_window,
+            fetch_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
